@@ -1,6 +1,27 @@
-import Pocketbase from "pocketbase";
+import PocketBase from "pocketbase";
 
-const pb = new Pocketbase("http://127.0.0.1:8090");
+// Initialize PocketBase client
+const pb = new PocketBase(import.meta.env.VITE_POCKETBASE_URL);
 
-export const auth = pb.authStore;
+// Restore authentication session
+pb.authStore.loadFromCookie(document.cookie);
+
+// Ensure authentication state is saved to cookies
+pb.authStore.onChange(() => {
+  document.cookie = pb.authStore.exportToCookie();
+});
+
+// Expose auth object
+export const auth = {
+  record: pb.authStore.model,
+  isAuthenticated: () => pb.authStore.isValid,
+  login: async (email: string, password: string) => {
+    const authData = await pb.collection("users").authWithPassword(email, password);
+    return authData;
+  },
+  logout: () => {
+    pb.authStore.clear();
+  }
+};
+
 export default pb;
