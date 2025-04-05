@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trip } from '../data/db';
+import { Trip, db } from '../data/db';
 import { Button, Label, TextInput, Textarea } from 'flowbite-react';
 
 interface TripModalProps {
@@ -15,9 +15,31 @@ const TripModal: React.FC<TripModalProps> = ({ onClose, onAddTrip, tripToEdit })
   const [notes, setNotes] = useState(tripToEdit?.notes || '');
   const [distance, setDistance] = useState(tripToEdit?.distance || 0);
 
+  useEffect(() => {
+    // Fetch the most recent trip to pre-fill start odometer when creating a new trip
+    if (!tripToEdit) {
+      const fetchLastTrip = async () => {
+        try {
+          const lastTrip = await db.trips
+            .orderBy('date')
+            .last();
+          
+          if (lastTrip) {
+            setStartOdometer(lastTrip.endOdometer);
+          }
+        } catch (error) {
+          console.error('Error fetching last trip:', error);
+        }
+      };
+
+      fetchLastTrip();
+    }
+  }, [tripToEdit]);
+
   // Calculate distance when odometer values change
   useEffect(() => {
-    setDistance(endOdometer - startOdometer);
+    const calculatedDistance = Math.max(0, endOdometer - startOdometer);
+    setDistance(calculatedDistance);
   }, [startOdometer, endOdometer]);
 
   const handleSubmit = (e: React.FormEvent) => {

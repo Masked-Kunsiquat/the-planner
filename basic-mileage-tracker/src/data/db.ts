@@ -20,6 +20,19 @@ export interface Expense {
   notes: string;
 }
 
+export interface Expense {
+  id?: number;
+  date: string;
+  type: 'gas' | 'maintenance' | 'other';
+  amount: number;
+  odometer: number;
+  gallons?: number; // Optional, as fill-up might be partial
+  pricePerGallon?: number; // Added to track price per gallon
+  location?: string; // Added to track fill-up location
+  isFull?: boolean; // Flag to indicate if this was a full tank fill-up
+  notes: string;
+}
+
 export class MileageTrackerDB extends Dexie {
   trips!: Table<Trip>;
   expenses!: Table<Expense>;

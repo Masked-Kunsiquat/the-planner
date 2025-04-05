@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Expense } from '../data/db';
-import { Button, Label, TextInput, Textarea, Select } from 'flowbite-react';
+import { Button, Label, TextInput, Textarea, Select, Checkbox } from 'flowbite-react';
 
 interface ExpenseModalProps {
   onClose: () => void;
@@ -13,7 +13,18 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ onClose, onAddExpense, expe
   const [amount, setAmount] = useState(expenseToEdit?.amount || 0);
   const [odometer, setOdometer] = useState(expenseToEdit?.odometer || 0);
   const [gallons, setGallons] = useState(expenseToEdit?.gallons || 0);
+  const [pricePerGallon, setPricePerGallon] = useState(expenseToEdit?.pricePerGallon || 0);
+  const [location, setLocation] = useState(expenseToEdit?.location || '');
+  const [isFull, setIsFull] = useState(expenseToEdit?.isFull || false);
   const [notes, setNotes] = useState(expenseToEdit?.notes || '');
+
+  // Automatically calculate price per gallon when amount or gallons change
+  useEffect(() => {
+    if (type === 'gas' && gallons > 0 && amount > 0) {
+      const calculatedPricePerGallon = amount / gallons;
+      setPricePerGallon(Number(calculatedPricePerGallon.toFixed(3)));
+    }
+  }, [amount, gallons, type]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +34,13 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ onClose, onAddExpense, expe
       type,
       amount,
       odometer,
-      gallons: type === 'gas' ? gallons : undefined,
+      // Only include gas-specific fields for gas expenses
+      ...(type === 'gas' ? { 
+        gallons: gallons > 0 ? gallons : undefined,
+        pricePerGallon: pricePerGallon > 0 ? pricePerGallon : undefined,
+        location,
+        isFull 
+      } : {}),
       notes,
     };
     onAddExpense(expense);
@@ -88,25 +105,48 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ onClose, onAddExpense, expe
           </div>
           
           {type === 'gas' && (
-            <div>
-              <div className="mb-2 block">
-                <Label htmlFor="gallons">Gallons</Label>
+            <>
+              <div>
+                <div className="mb-2 block">
+                  <Label htmlFor="gallons">Gallons</Label>
+                </div>
+                <TextInput
+                  id="gallons"
+                  type="number"
+                  step="0.001"
+                  value={gallons.toString()}
+                  onChange={(e) => setGallons(parseFloat(e.target.value) || 0)}
+                  required
+                />
               </div>
-              <TextInput
-                id="gallons"
-                type="number"
-                step="0.001"
-                value={gallons.toString()}
-                onChange={(e) => setGallons(parseFloat(e.target.value) || 0)}
-                required
-              />
+              
+              <div>
+                <div className="mb-2 block">
+                  <Label htmlFor="location">Location (Optional)</Label>
+                </div>
+                <TextInput
+                  id="location"
+                  type="text"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                />
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="isFull"
+                  checked={isFull}
+                  onChange={() => setIsFull(!isFull)}
+                />
+                <Label htmlFor="isFull">Full Tank</Label>
+              </div>
               
               {gallons > 0 && amount > 0 && (
-                <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                  Price per gallon: ${(amount / gallons).toFixed(3)}
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Price per gallon: ${pricePerGallon.toFixed(3)}
                 </div>
               )}
-            </div>
+            </>
           )}
           
           <div>

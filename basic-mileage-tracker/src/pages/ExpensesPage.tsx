@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { db, Expense } from '../data/db';
+import { VehicleAnalyticsService } from '../services/VehicleAnalyticsService';
 import ExpenseModal from '../components/ExpenseModal';
 import { Button, Card, Badge } from 'flowbite-react';
 import { HiOutlineArrowLeft, HiOutlinePencil, HiOutlineTrash, HiOutlinePlus } from 'react-icons/hi';
@@ -13,6 +14,9 @@ const ExpensesPage: React.FC = () => {
     totalSpent: 0,
     totalGallons: 0,
     avgMpg: 0,
+    bestMpg: 0,
+    worstMpg: 0,
+    totalFullTankFillups: 0,
   });
 
   useEffect(() => {
@@ -23,38 +27,21 @@ const ExpensesPage: React.FC = () => {
         allExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         setExpenses(allExpenses);
         
-        // Calculate stats
+        // Calculate general expense stats
         const gasExpenses = allExpenses.filter(e => e.type === 'gas');
         const totalSpent = allExpenses.reduce((sum, expense) => sum + expense.amount, 0);
         const totalGallons = gasExpenses.reduce((sum, expense) => sum + (expense.gallons || 0), 0);
         
-        // Calculate MPG (requires odometer data from consecutive fill-ups)
-        let avgMpg = 0;
-        if (gasExpenses.length >= 2) {
-          // Sort by odometer for MPG calculation
-          const sortedByOdometer = [...gasExpenses].sort((a, b) => a.odometer - b.odometer);
-          let totalMiles = 0;
-          let totalGallonsForMpg = 0;
-          
-          for (let i = 1; i < sortedByOdometer.length; i++) {
-            const miles = sortedByOdometer[i].odometer - sortedByOdometer[i - 1].odometer;
-            const gallons = sortedByOdometer[i].gallons || 0;
-            
-            if (miles > 0 && gallons > 0) {
-              totalMiles += miles;
-              totalGallonsForMpg += gallons;
-            }
-          }
-          
-          if (totalGallonsForMpg > 0) {
-            avgMpg = totalMiles / totalGallonsForMpg;
-          }
-        }
+        // Use VehicleAnalyticsService for MPG calculations
+        const mpgReport = await VehicleAnalyticsService.calculateDetailedMPG();
         
         setStats({
           totalSpent,
           totalGallons,
-          avgMpg,
+          avgMpg: mpgReport.averageMPG,
+          bestMpg: mpgReport.bestMPG,
+          worstMpg: mpgReport.worstMPG,
+          totalFullTankFillups: mpgReport.totalFullTankFillups,
         });
       } catch (error) {
         console.error('Error fetching expenses:', error);
@@ -147,6 +134,33 @@ const ExpensesPage: React.FC = () => {
             </div>
           </div>
         </Card>
+
+        <Card>
+          <div className="flex flex-col">
+            <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">BEST MPG</h3>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">
+              {stats.bestMpg > 0 ? stats.bestMpg.toFixed(1) : 'N/A'}
+            </div>
+          </div>
+        </Card>
+        
+        <Card>
+          <div className="flex flex-col">
+            <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">WORST MPG</h3>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">
+              {stats.worstMpg > 0 ? stats.worstMpg.toFixed(1) : 'N/A'}
+            </div>
+          </div>
+        </Card>
+        
+        <Card>
+          <div className="flex flex-col">
+            <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">FULL TANK FILLUPS</h3>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">
+              {stats.totalFullTankFillups}
+            </div>
+          </div>
+        </Card>
       </div>
 
       <Card>
@@ -183,6 +197,9 @@ const ExpensesPage: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {getExpenseTypeLabel(expense.type)}
+                      {expense.type === 'gas' && expense.isFull && (
+                        <Badge color="warning" className="ml-2">Full Tank</Badge>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       ${expense.amount.toFixed(2)}

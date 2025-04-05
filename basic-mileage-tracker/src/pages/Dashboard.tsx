@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { db, Trip, Expense } from '../data/db';
+import { VehicleAnalyticsService } from '../services/VehicleAnalyticsService';
 import { Link } from 'react-router-dom';
 import TripModal from '../components/TripModal';
 import ExpenseModal from '../components/ExpenseModal';
 import { Card, Button } from 'flowbite-react';
-import { HiOutlinePlus } from 'react-icons/hi';
+import { 
+  HiOutlinePlus, 
+  HiOutlineCalendar, 
+  HiOutlineMap, 
+  HiOutlineClipboardList, 
+  HiOutlineCash, 
+  HiOutlineBeaker,
+  HiOutlineDocumentText,
+  HiOutlineTruck,
+  HiOutlineChartBar
+} from 'react-icons/hi';
 
 const Dashboard: React.FC = () => {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -17,47 +28,60 @@ const Dashboard: React.FC = () => {
     avgMiles: 0,
     totalExpenses: 0,
     fuelExpenses: 0,
+    maintenanceExpenses: 0,
+    costPerMile: 0,
+    averageMPG: 0,
+    totalGallonsFilled: 0,
+    averagePricePerGallon: 0,
   });
 
   useEffect(() => {
     const fetchData = async () => {
-      // Fetch trips
-      const allTrips = await db.trips.toArray();
-      setTrips(allTrips);
-      
-      // Fetch expenses
       try {
-        const allExpenses = await db.expenses.toArray();
-        setExpenses(allExpenses);
+        // Fetch trips
+        const allTrips = await db.trips.toArray();
         
-        // Calculate stats
+        // Fetch expenses
+        const allExpenses = await db.expenses.toArray();
+        
+        // Calculate trip-related stats
         const totalMiles = allTrips.reduce((sum, trip) => sum + trip.distance, 0);
         const totalExpenses = allExpenses.reduce((sum, expense) => sum + expense.amount, 0);
         const fuelExpenses = allExpenses
           .filter(expense => expense.type === 'gas')
           .reduce((sum, expense) => sum + expense.amount, 0);
+        const maintenanceExpenses = allExpenses
+          .filter(expense => expense.type === 'maintenance')
+          .reduce((sum, expense) => sum + expense.amount, 0);
         
+        // Calculate cost per mile
+        const costPerMile = totalMiles > 0 ? fuelExpenses / totalMiles : 0;
+
+        // Calculate MPG
+        const mpgReport = await VehicleAnalyticsService.calculateDetailedMPG();
+        
+        // Calculate Fuel Costs
+        const fuelCostReport = await VehicleAnalyticsService.calculateFuelCosts();
+
+        setTrips(allTrips);
+        setExpenses(allExpenses);
         setStats({
           totalTrips: allTrips.length,
           totalMiles: totalMiles,
           avgMiles: allTrips.length > 0 ? totalMiles / allTrips.length : 0,
           totalExpenses: totalExpenses,
           fuelExpenses: fuelExpenses,
+          maintenanceExpenses: maintenanceExpenses,
+          costPerMile: costPerMile,
+          averageMPG: mpgReport.averageMPG,
+          totalGallonsFilled: fuelCostReport.totalGallonsFilled,
+          averagePricePerGallon: fuelCostReport.averagePricePerGallon,
         });
       } catch (error) {
-        // Handle case where expenses table may not exist yet (before DB version 2 upgrade)
-        console.log('Expenses table may not be available yet');
-        
-        const totalMiles = allTrips.reduce((sum, trip) => sum + trip.distance, 0);
-        setStats({
-          totalTrips: allTrips.length,
-          totalMiles: totalMiles,
-          avgMiles: allTrips.length > 0 ? totalMiles / allTrips.length : 0,
-          totalExpenses: 0,
-          fuelExpenses: 0,
-        });
+        console.error('Error fetching data:', error);
       }
     };
+    
     fetchData();
   }, []);
 
@@ -78,67 +102,101 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  // Stat card component for consistent styling
+  const StatCard = ({ 
+    icon: Icon, 
+    title, 
+    value, 
+    link, 
+    linkText 
+  }: { 
+    icon: React.ElementType, 
+    title: string, 
+    value: string | number, 
+    link?: string, 
+    linkText?: string 
+  }) => (
+    <Card>
+      <div className="flex flex-col">
+        <div className="flex items-center mb-2">
+          <Icon className="h-6 w-6 text-gray-500 dark:text-gray-400 mr-3" />
+          <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium">{title}</h3>
+        </div>
+        <div className="flex items-baseline">
+          <div className="text-2xl font-bold text-gray-900 dark:text-white">{value}</div>
+          {link && (
+            <Link to={link} className="ml-auto text-blue-500 hover:text-blue-700 text-sm">
+              {linkText || 'View All'}
+            </Link>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6 text-center text-gray-900 dark:text-white">Mileage Tracker</h1>
       
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card>
-          <div className="flex flex-col">
-            <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">TOTAL TRIPS</h3>
-            <div className="flex items-baseline">
-              <div className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalTrips}</div>
-              <Link to="/trips" className="ml-auto text-blue-500 hover:text-blue-700 text-sm">
-                View All
-              </Link>
-            </div>
-          </div>
-        </Card>
-        
-        <Card>
-          <div className="flex flex-col">
-            <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">TOTAL MILES</h3>
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalMiles.toFixed(1)}</div>
-          </div>
-        </Card>
-        
-        <Card>
-          <div className="flex flex-col">
-            <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">AVG MILES PER TRIP</h3>
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">{stats.avgMiles.toFixed(1)}</div>
-          </div>
-        </Card>
-        
-        <Card>
-          <div className="flex flex-col">
-            <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">TOTAL EXPENSES</h3>
-            <div className="flex items-baseline">
-              <div className="text-3xl font-bold text-gray-900 dark:text-white">${stats.totalExpenses.toFixed(2)}</div>
-              <Link to="/expenses" className="ml-auto text-blue-500 hover:text-blue-700 text-sm">
-                View All
-              </Link>
-            </div>
-          </div>
-        </Card>
-        
-        <Card>
-          <div className="flex flex-col">
-            <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">FUEL EXPENSES</h3>
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">${stats.fuelExpenses.toFixed(2)}</div>
-          </div>
-        </Card>
-        
-        <Card>
-          <div className="flex flex-col">
-            <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">COST PER MILE</h3>
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">
-              {stats.totalMiles > 0 
-                ? `$${(stats.fuelExpenses / stats.totalMiles).toFixed(2)}` 
-                : 'N/A'}
-            </div>
-          </div>
-        </Card>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-3 gap-4 mb-8 overflow-x-auto">
+        <div className="grid gap-4">
+          <StatCard 
+            icon={HiOutlineCalendar}
+            title="TOTAL TRIPS"
+            value={stats.totalTrips}
+            link="/trips"
+          />
+          <StatCard 
+            icon={HiOutlineMap}
+            title="TOTAL MILES"
+            value={stats.totalMiles.toFixed(1)}
+          />
+          <StatCard 
+            icon={HiOutlineClipboardList}
+            title="AVG MILES"
+            value={stats.avgMiles.toFixed(1)}
+          />
+        </div>
+        <div className="grid gap-4">
+          <StatCard 
+            icon={HiOutlineCash}
+            title="TOTAL EXPENSES"
+            value={`$${stats.totalExpenses.toFixed(2)}`}
+            link="/expenses"
+          />
+          <StatCard 
+            icon={HiOutlineBeaker}
+            title="FUEL EXPENSES"
+            value={`$${stats.fuelExpenses.toFixed(2)}`}
+          />
+          <StatCard 
+            icon={HiOutlineDocumentText}
+            title="MAINT. EXPENSES"
+            value={`$${stats.maintenanceExpenses.toFixed(2)}`}
+          />
+        </div>
+        <div className="grid gap-4">
+          <StatCard 
+            icon={HiOutlineTruck}
+            title="COST PER MILE"
+            value={stats.totalMiles > 0 
+              ? `$${stats.costPerMile.toFixed(2)}` 
+              : 'N/A'}
+          />
+          <StatCard 
+            icon={HiOutlineChartBar}
+            title="AVG MPG"
+            value={stats.averageMPG > 0 
+              ? stats.averageMPG.toFixed(1)
+              : 'N/A'}
+          />
+          <StatCard 
+            icon={HiOutlineBeaker}
+            title="AVG PRICE/GAL"
+            value={`$${stats.averagePricePerGallon.toFixed(3)}`}
+          />
+        </div>
       </div>
       
       {/* Quick Actions */}
