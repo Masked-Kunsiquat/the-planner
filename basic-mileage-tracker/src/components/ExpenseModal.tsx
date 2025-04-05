@@ -17,6 +17,7 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ onClose, onAddExpense, expe
   const [location, setLocation] = useState(expenseToEdit?.location || '');
   const [isFull, setIsFull] = useState(expenseToEdit?.isFull || false);
   const [notes, setNotes] = useState(expenseToEdit?.notes || '');
+  const [date, setDate] = useState(expenseToEdit?.date ? expenseToEdit.date.split('T')[0] : new Date().toISOString().split('T')[0]);
 
   // Automatically calculate price per gallon when amount or gallons change
   useEffect(() => {
@@ -30,7 +31,7 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ onClose, onAddExpense, expe
     e.preventDefault();
     const expense: Expense = {
       id: expenseToEdit?.id,
-      date: expenseToEdit?.date || new Date().toISOString(),
+      date: new Date(date).toISOString(),
       type,
       amount,
       odometer,
@@ -59,6 +60,19 @@ const ExpenseModal: React.FC<ExpenseModalProps> = ({ onClose, onAddExpense, expe
             </svg>
           </button>
         </div>
+        <div>
+  <div className="mb-2 block">
+    <Label htmlFor="date">Date</Label>
+  </div>
+  <TextInput
+    id="date"
+    type="date"
+    value={date}
+    onChange={(e) => setDate(e.target.value)}
+    required
+  />
+</div>
+
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
