@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { db, Expense } from '../data/db';
 import ExpenseModal from '../components/ExpenseModal';
+import { Button, Card, Badge } from 'flowbite-react';
+import { HiOutlineArrowLeft, HiOutlinePencil, HiOutlineTrash, HiOutlinePlus } from 'react-icons/hi';
 
 const ExpensesPage: React.FC = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -101,65 +103,57 @@ const ExpensesPage: React.FC = () => {
   const getExpenseTypeLabel = (type: string) => {
     switch (type) {
       case 'gas':
-        return (
-          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100">
-            Gas
-          </span>
-        );
+        return <Badge color="success">Gas</Badge>;
       case 'maintenance':
-        return (
-          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100">
-            Maintenance
-          </span>
-        );
+        return <Badge color="info">Maintenance</Badge>;
       default:
-        return (
-          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100">
-            Other
-          </span>
-        );
+        return <Badge color="gray">Other</Badge>;
     }
   };
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold dark:text-white">Vehicle Expenses</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Vehicle Expenses</h1>
         <div className="flex space-x-2">
-          <Link to="/" className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-gray-200 font-semibold py-2 px-4 rounded inline-flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
-            </svg>
+          <Button as={Link} to="/" color="gray">
+            <HiOutlineArrowLeft className="mr-2 h-5 w-5" />
             Dashboard
-          </Link>
+          </Button>
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">TOTAL SPENT</h3>
-          <div className="text-3xl font-bold text-gray-900 dark:text-white">${stats.totalSpent.toFixed(2)}</div>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">TOTAL GALLONS</h3>
-          <div className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalGallons.toFixed(2)}</div>
-        </div>
-        
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">AVG MPG</h3>
-          <div className="text-3xl font-bold text-gray-900 dark:text-white">
-            {stats.avgMpg > 0 ? stats.avgMpg.toFixed(1) : 'N/A'}
+        <Card>
+          <div className="flex flex-col">
+            <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">TOTAL SPENT</h3>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">${stats.totalSpent.toFixed(2)}</div>
           </div>
-        </div>
+        </Card>
+        
+        <Card>
+          <div className="flex flex-col">
+            <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">TOTAL GALLONS</h3>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">{stats.totalGallons.toFixed(2)}</div>
+          </div>
+        </Card>
+        
+        <Card>
+          <div className="flex flex-col">
+            <h3 className="text-gray-500 dark:text-gray-400 text-sm font-medium mb-1">AVG MPG</h3>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">
+              {stats.avgMpg > 0 ? stats.avgMpg.toFixed(1) : 'N/A'}
+            </div>
+          </div>
+        </Card>
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+      <Card>
         {expenses.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-900">
+              <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
                   <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Date
@@ -184,13 +178,13 @@ const ExpensesPage: React.FC = () => {
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {expenses.map((expense) => (
                   <tr key={expense.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {new Date(expense.date).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {getExpenseTypeLabel(expense.type)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       ${expense.amount.toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -206,18 +200,22 @@ const ExpensesPage: React.FC = () => {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleEditExpense(expense)}
-                        className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 mr-4"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteExpense(expense.id!)}
-                        className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          onClick={() => handleEditExpense(expense)}
+                          size="xs"
+                          color="info"
+                        >
+                          <HiOutlinePencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          onClick={() => handleDeleteExpense(expense.id!)}
+                          size="xs"
+                          color="failure"
+                        >
+                          <HiOutlineTrash className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -225,9 +223,9 @@ const ExpensesPage: React.FC = () => {
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 px-4">
+          <div className="flex flex-col items-center justify-center py-12">
             <svg
-              className="mx-auto h-12 w-12 text-gray-400"
+              className="w-16 h-16 text-gray-400 dark:text-gray-500 mb-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -240,48 +238,34 @@ const ExpensesPage: React.FC = () => {
                 d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">No expenses recorded yet.</p>
-            <button
+            <p className="text-lg text-gray-500 dark:text-gray-400 mb-4">No expenses recorded yet</p>
+            <Button
               onClick={() => {
                 setCurrentExpense(undefined);
                 setIsModalOpen(true);
               }}
-              className="mt-3 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 focus:outline-none"
+              color="blue"
             >
-              <svg
-                className="-ml-1 mr-2 h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                />
-              </svg>
+              <HiOutlinePlus className="mr-2 h-5 w-5" />
               Add Your First Expense
-            </button>
+            </Button>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Quick Add Button (Fixed) */}
       {expenses.length > 0 && (
         <div className="fixed bottom-8 right-8">
-          <button
+          <Button
             onClick={() => {
               setCurrentExpense(undefined);
               setIsModalOpen(true);
             }}
-            className="bg-blue-500 hover:bg-blue-600 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg"
+            color="blue"
+            className="rounded-full w-14 h-14 flex items-center justify-center"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-          </button>
+            <HiOutlinePlus className="h-6 w-6" />
+          </Button>
         </div>
       )}
 

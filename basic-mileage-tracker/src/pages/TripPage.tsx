@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { db, Trip } from '../data/db';
 import TripModal from '../components/TripModal';
+import { Button, Card, Spinner } from 'flowbite-react';
+import { HiOutlineArrowLeft, HiOutlineDownload, HiOutlinePencil, HiOutlineTrash, HiOutlinePlus } from 'react-icons/hi';
 
 const TripsPage: React.FC = () => {
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -87,84 +89,93 @@ const TripsPage: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">All Trips</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">All Trips</h1>
         <div className="flex space-x-2">
-          <Link to="/" className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded inline-flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clipRule="evenodd" />
-            </svg>
+          <Button as={Link} to="/" color="gray">
+            <HiOutlineArrowLeft className="mr-2 h-5 w-5" />
             Dashboard
-          </Link>
-          <button
+          </Button>
+          <Button
             onClick={exportToCSV}
             disabled={isExporting || trips.length === 0}
-            className={`bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded inline-flex items-center ${(isExporting || trips.length === 0) ? 'opacity-50 cursor-not-allowed' : ''}`}
+            color="success"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-            {isExporting ? 'Exporting...' : 'Export CSV'}
-          </button>
+            {isExporting ? (
+              <>
+                <Spinner className="mr-2 h-4 w-4" />
+                Exporting...
+              </>
+            ) : (
+              <>
+                <HiOutlineDownload className="mr-2 h-5 w-5" />
+                Export CSV
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+      <Card>
         {trips.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Date
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Distance
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Odometer
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Purpose
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Notes
                   </th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {trips.map((trip) => (
-                  <tr key={trip.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <tr key={trip.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {new Date(trip.date).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {trip.distance.toFixed(1)} miles
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                       {trip.startOdometer} → {trip.endOdometer}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
+                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white max-w-xs truncate">
                       {trip.purpose}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate">
                       {trip.notes}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleEditTrip(trip)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-4"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteTrip(trip.id!)}
-                        className="text-red-600 hover:text-red-900"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          onClick={() => handleEditTrip(trip)}
+                          size="xs"
+                          color="info"
+                        >
+                          <HiOutlinePencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          onClick={() => handleDeleteTrip(trip.id!)}
+                          size="xs"
+                          color="failure"
+                        >
+                          <HiOutlineTrash className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -172,9 +183,9 @@ const TripsPage: React.FC = () => {
             </table>
           </div>
         ) : (
-          <div className="text-center py-8 px-4">
+          <div className="flex flex-col items-center justify-center py-12">
             <svg
-              className="mx-auto h-12 w-12 text-gray-400"
+              className="w-16 h-16 text-gray-400 dark:text-gray-500 mb-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -187,48 +198,34 @@ const TripsPage: React.FC = () => {
                 d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
               />
             </svg>
-            <p className="mt-2 text-sm text-gray-500">No trips recorded yet.</p>
-            <button
+            <p className="text-lg text-gray-500 dark:text-gray-400 mb-4">No trips recorded yet</p>
+            <Button
               onClick={() => {
                 setCurrentTrip(undefined);
                 setIsModalOpen(true);
               }}
-              className="mt-3 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-500 hover:bg-blue-600 focus:outline-none"
+              color="blue"
             >
-              <svg
-                className="-ml-1 mr-2 h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                />
-              </svg>
+              <HiOutlinePlus className="mr-2 h-5 w-5" />
               Add Your First Trip
-            </button>
+            </Button>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Quick Add Button (Fixed) */}
       {trips.length > 0 && (
         <div className="fixed bottom-8 right-8">
-          <button
+          <Button
             onClick={() => {
               setCurrentTrip(undefined);
               setIsModalOpen(true);
             }}
-            className="bg-blue-500 hover:bg-blue-600 text-white rounded-full w-14 h-14 flex items-center justify-center shadow-lg"
+            color="blue"
+            className="rounded-full w-14 h-14 flex items-center justify-center"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-          </button>
+            <HiOutlinePlus className="h-6 w-6" />
+          </Button>
         </div>
       )}
 
