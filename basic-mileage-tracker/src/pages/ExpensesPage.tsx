@@ -1,95 +1,68 @@
-import React, { useState, useEffect } from 'react';
+// ExpensesPage.tsx (Refactored - April 5, 2025)
+import React, { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { db, Expense } from '../data/db';
-import { VehicleAnalyticsService } from '../services/VehicleAnalyticsService';
+import { Expense } from '../data/db'; // Keep Expense type import
+import { useExpenses } from '../hooks/useExpenses'; // Import the hook
+import StatCard from '../components/StatCard'; // Import extracted component
 import ExpenseModal from '../components/ExpenseModal';
 import FuelPriceChart from '../components/FuelPriceChart';
-import { Button, Card, Badge } from 'flowbite-react';
+import ExpenseTable from '../components/ExpenseTable';
+import { Button, Card, Pagination, Spinner } from 'flowbite-react'; // Added Spinner
 import {
   HiOutlineArrowLeft,
-  HiOutlinePencil,
-  HiOutlineTrash,
   HiOutlinePlus,
+  HiOutlineCash,
+  HiOutlineCalculator,
+  HiOutlineChartPie,
+  HiOutlineFire,
+  HiOutlineBan,
 } from 'react-icons/hi';
+import { MdOutlineLocalGasStation } from 'react-icons/md';
 
-// Reusable stat card
-const StatCard = ({ title, value }: { title: string; value: string | number }) => (
-  <Card>
-    <div className="flex flex-col text-center">
-      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{title}</h3>
-      <div className="text-3xl font-bold text-gray-900 dark:text-white">{value}</div>
-    </div>
-  </Card>
-);
+const ITEMS_PER_PAGE = 10;
 
 const ExpensesPage: React.FC = () => {
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  // --- Use the custom hook for data logic ---
+  const {
+    expenses,
+    stats,
+    isLoading: isLoadingData, // Rename to avoid conflict if needed elsewhere
+    error,
+    addExpense,
+    updateExpense,
+    deleteExpense,
+  } = useExpenses();
+
+  // --- State specific to this component (Modal, Pagination) ---
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentExpense, setCurrentExpense] = useState<Expense | undefined>(undefined);
-  const [stats, setStats] = useState({
-    totalSpent: 0,
-    totalGallons: 0,
-    avgMpg: 0,
-    bestMpg: 0,
-    worstMpg: 0,
-    totalFullTankFillups: 0,
-  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isSaving, setIsSaving] = useState(false); // Separate loading state for save/delete actions
 
-  useEffect(() => {
-    const fetchExpenses = async () => {
-      try {
-        const allExpenses = await db.expenses.toArray();
-        allExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setExpenses(allExpenses);
+  // --- Pagination Logic ---
+  const totalItems = expenses.length;
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
-        const gasExpenses = allExpenses.filter(e => e.type === 'gas');
-        const totalSpent = allExpenses.reduce((sum, e) => sum + e.amount, 0);
-        const totalGallons = gasExpenses.reduce((sum, e) => sum + (e.gallons || 0), 0);
-        const mpgReport = await VehicleAnalyticsService.calculateDetailedMPG();
+  const paginatedExpenses = useMemo(() => {
+    // Reset to page 1 if filters/data change results in fewer pages
+     if (totalItems > 0 && currentPage > totalPages) {
+       setCurrentPage(totalPages); // Or setCurrentPage(1) if preferred
+     } else if (totalItems === 0) {
+       setCurrentPage(1);
+     }
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, totalItems);
+    return expenses.slice(startIndex, endIndex);
+  }, [expenses, currentPage, totalPages]); // Added totalPages dependency
 
-        setStats({
-          totalSpent,
-          totalGallons,
-          avgMpg: mpgReport.averageMPG,
-          bestMpg: mpgReport.bestMPG,
-          worstMpg: mpgReport.worstMPG,
-          totalFullTankFillups: mpgReport.totalFullTankFillups,
-        });
-      } catch (error) {
-        console.error('Error fetching expenses:', error);
-      }
-    };
-
-    fetchExpenses();
-  }, []);
-
-  const handleAddExpense = async (expense: Expense) => {
-    try {
-      if (expense.id) {
-        await db.expenses.update(expense.id, expense);
-        setExpenses(expenses.map(e => (e.id === expense.id ? expense : e)));
-      } else {
-        const id = await db.expenses.add(expense);
-        setExpenses([{ ...expense, id }, ...expenses]);
-      }
-      setIsModalOpen(false);
-      setCurrentExpense(undefined);
-    } catch (error) {
-      console.error('Error saving expense:', error);
-      alert('Failed to save expense. Please try again.');
-    }
+  const onPageChange = (page: number) => {
+    setCurrentPage(page);
   };
 
-  const handleDeleteExpense = async (id: number) => {
-    if (confirm('Are you sure you want to delete this expense?')) {
-      try {
-        await db.expenses.delete(id);
-        setExpenses(expenses.filter(exp => exp.id !== id));
-      } catch (error) {
-        console.error('Error deleting expense:', error);
-        alert('Failed to delete expense. Please try again.');
-      }
-    }
+  // --- Modal and Action Handlers ---
+  const handleOpenAddModal = () => {
+    setCurrentExpense(undefined);
+    setIsModalOpen(true);
   };
 
   const handleEditExpense = (expense: Expense) => {
@@ -97,20 +70,72 @@ const ExpensesPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const getExpenseTypeLabel = (type: string) => {
-    switch (type) {
-      case 'gas':
-        return <Badge color="success">Gas</Badge>;
-      case 'maintenance':
-        return <Badge color="info">Maintenance</Badge>;
-      default:
-        return <Badge color="gray">Other</Badge>;
+  const handleCloseModal = useCallback(() => {
+    setIsModalOpen(false);
+    setCurrentExpense(undefined);
+  }, []);
+
+  const handleSaveExpense = async (expenseData: Expense | Omit<Expense, 'id'>) => {
+    setIsSaving(true);
+    try {
+      if ('id' in expenseData) {
+        await updateExpense(expenseData as Expense);
+      } else {
+        await addExpense(expenseData as Omit<Expense, 'id'>);
+      }
+      handleCloseModal();
+    } catch (err) {
+        console.error('Failed to save expense:', err);
+        // Show user feedback (e.g., alert or toast notification)
+        alert(`Error saving expense: ${err instanceof Error ? err.message : 'Please try again.'}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
+  const handleDeleteExpense = async (id: number) => {
+    if (window.confirm('Are you sure you want to delete this expense?')) {
+      setIsSaving(true); // Use isSaving for delete operation as well
+      try {
+        await deleteExpense(id);
+        // Pagination adjustment is implicitly handled by useMemo recalculating paginatedExpenses
+        // If the last item on the last page is deleted, useMemo's effect dependency `totalPages` will trigger adjustment
+      } catch (err) {
+        console.error('Failed to delete expense:', err);
+        alert(`Error deleting expense: ${err instanceof Error ? err.message : 'Please try again.'}`);
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  };
+
+  // --- Loading & Empty State Components ---
+  const LoadingIndicator: React.FC<{ text: string }> = ({ text }) => (
+    <div className="flex justify-center items-center py-12 space-x-2 text-lg text-gray-500 dark:text-gray-400">
+        <Spinner size="md" />
+        <span>{text}</span>
+    </div>
+  );
+
+  const EmptyState: React.FC = () => (
+     <div className="flex flex-col items-center justify-center py-12">
+       <svg className="w-16 h-16 text-gray-400 dark:text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+         <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h7.5M8.25 12h7.5m-7.5 5.25h7.5M3.75 6.75h.008v.008H3.75V6.75zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zM3.75 12h.008v.008H3.75V12zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0zm-.375 5.25h.008v.008H3.75v-.008zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0z" />
+         <path strokeLinecap="round" strokeLinejoin="round" d="M3 3v18h18V3H3z" />
+       </svg>
+       <p className="text-lg text-gray-500 dark:text-gray-400 mb-4">No expenses recorded yet</p>
+       <Button onClick={handleOpenAddModal} color="blue">
+         <HiOutlinePlus className="mr-2 h-5 w-5" />
+         Add Your First Expense
+       </Button>
+     </div>
+   );
+
+
+  // --- RENDER LOGIC ---
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Header */}
+      {/* --- Header --- */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Vehicle Expenses</h1>
         <Button as={Link} to="/" color="gray">
@@ -119,112 +144,104 @@ const ExpensesPage: React.FC = () => {
         </Button>
       </div>
 
-      {/* Stat Cards + Fuel Chart */}
-      <div className="w-full max-w-6xl mx-auto mb-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-6xl">
-          <StatCard title="TOTAL SPENT" value={`$${stats.totalSpent.toFixed(2)}`} />
-          <StatCard title="TOTAL GALLONS" value={stats.totalGallons.toFixed(2)} />
-          <StatCard title="AVG MPG" value={stats.avgMpg > 0 ? stats.avgMpg.toFixed(1) : 'N/A'} />
-          <StatCard title="BEST MPG" value={stats.bestMpg > 0 ? stats.bestMpg.toFixed(1) : 'N/A'} />
-          <StatCard title="WORST MPG" value={stats.worstMpg > 0 ? stats.worstMpg.toFixed(1) : 'N/A'} />
-          <StatCard title="FULL TANK FILLUPS" value={stats.totalFullTankFillups} />
-        </div>
+      {/* Display Hook Error */}
+      {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+              <strong className="font-bold">Error:</strong>
+              <span className="block sm:inline"> {error}</span>
+          </div>
+      )}
 
-        <div className="w-full max-w-4xl mx-auto mb-10">
-          <Card>
-            <FuelPriceChart />
-          </Card>
-        </div>
+      {/* --- Stat Cards Grid --- */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        <StatCard
+          icon={HiOutlineCash}
+          title="TOTAL SPENT"
+          value={isLoadingData ? '...' : `$${stats.totalSpent.toFixed(2)}`}
+        />
+        <StatCard
+          icon={MdOutlineLocalGasStation}
+          title="TOTAL GALLONS"
+          value={isLoadingData ? '...' : stats.totalGallons.toFixed(2)}
+        />
+        <StatCard
+          icon={HiOutlineCalculator}
+          title="AVG MPG"
+          value={isLoadingData ? '...' : (stats.avgMpg > 0 ? stats.avgMpg.toFixed(1) : 'N/A')}
+        />
+        <StatCard
+          icon={HiOutlineChartPie}
+          title="BEST MPG"
+          value={isLoadingData ? '...' : (stats.bestMpg > 0 ? stats.bestMpg.toFixed(1) : 'N/A')}
+        />
+        <StatCard
+          icon={HiOutlineBan}
+          title="WORST MPG"
+          value={isLoadingData ? '...' : (stats.worstMpg > 0 ? stats.worstMpg.toFixed(1) : 'N/A')}
+        />
+        <StatCard
+          icon={HiOutlineFire}
+          title="FULL FILLUPS"
+          value={isLoadingData ? '...' : stats.totalFullTankFillups}
+        />
       </div>
 
-      {/* Expense Table */}
+      {/* --- Fuel Chart --- */}
+      <div className="w-full max-w-4xl mx-auto mb-10">
+        <Card>
+          {isLoadingData && <LoadingIndicator text="Loading chart data..." /> }
+          {!isLoadingData && expenses.length === 0 && (
+               <div className="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400">
+                   No fuel data for chart.
+               </div>
+          )}
+          {!isLoadingData && expenses.length > 0 && (
+             <FuelPriceChart /* Pass necessary props if FuelPriceChart needs specific data */ />
+          )}
+        </Card>
+      </div>
+
+      {/* --- Expense Table Card --- */}
       <Card>
-        {expenses.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-800">
-                <tr>
-                  {['Date', 'Type', 'Amount', 'Odometer', 'Details', 'Actions'].map(h => (
-                    <th
-                      key={h}
-                      className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider ${
-                        h === 'Actions' ? 'text-right' : ''
-                      }`}
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {expenses.map(exp => (
-                  <tr key={exp.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                      {new Date(exp.date).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 text-sm">
-                      {getExpenseTypeLabel(exp.type)}
-                      {exp.type === 'gas' && exp.isFull && (
-                        <Badge color="warning" className="ml-2">
-                          Full Tank
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                      ${exp.amount.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {exp.odometer}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
-                      {exp.type === 'gas' && exp.gallons
-                        ? `${exp.gallons.toFixed(3)} gal @ $${(exp.amount / exp.gallons).toFixed(3)}/gal`
-                        : exp.notes}
-                    </td>
-                    <td className="px-6 py-4 text-right text-sm font-medium">
-                      <div className="flex justify-end gap-2">
-                        <Button onClick={() => handleEditExpense(exp)} size="xs" color="info">
-                          <HiOutlinePencil className="h-4 w-4" />
-                        </Button>
-                        <Button onClick={() => handleDeleteExpense(exp.id!)} size="xs" color="failure">
-                          <HiOutlineTrash className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {isLoadingData ? (
+           <LoadingIndicator text="Loading expenses..." />
+        ) : totalItems > 0 ? (
+          <>
+            {isSaving && <LoadingIndicator text="Saving changes..." /> } {/* Show saving indicator */}
+            <div className={isSaving ? 'opacity-50 pointer-events-none' : ''}> {/* Optionally dim table during save */}
+                <ExpenseTable
+                  expenses={paginatedExpenses}
+                  onEdit={handleEditExpense}
+                  onDelete={handleDeleteExpense}
+                />
+            </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center text-center pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={onPageChange}
+                  showIcons
+                />
+              </div>
+            )}
+          </>
         ) : (
-          <div className="flex flex-col items-center justify-center py-12">
-            <svg className="w-16 h-16 text-gray-400 dark:text-gray-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2" />
-            </svg>
-            <p className="text-lg text-gray-500 dark:text-gray-400 mb-4">No expenses recorded yet</p>
-            <Button onClick={() => {
-              setCurrentExpense(undefined);
-              setIsModalOpen(true);
-            }} color="blue">
-              <HiOutlinePlus className="mr-2 h-5 w-5" />
-              Add Your First Expense
-            </Button>
-          </div>
+          <EmptyState /> // Use the EmptyState component
         )}
       </Card>
 
       {/* Floating Add Button */}
-      {expenses.length > 0 && (
-        <div className="fixed bottom-8 right-8">
-          <Button
-            onClick={() => {
-              setCurrentExpense(undefined);
-              setIsModalOpen(true);
-            }}
+      {!isLoadingData && totalItems > 0 && (
+        <div className="fixed bottom-8 right-8 z-20">
+           <Button
+            onClick={handleOpenAddModal}
             color="blue"
-            className="rounded-full w-14 h-14 flex items-center justify-center"
+            className="rounded-full w-14 h-14 flex items-center justify-center shadow-lg"
+            disabled={isSaving} // Disable while saving
           >
             <HiOutlinePlus className="h-6 w-6" />
+            <span className="sr-only">Add Expense</span>
           </Button>
         </div>
       )}
@@ -232,12 +249,11 @@ const ExpensesPage: React.FC = () => {
       {/* Modal */}
       {isModalOpen && (
         <ExpenseModal
-          onClose={() => {
-            setIsModalOpen(false);
-            setCurrentExpense(undefined);
-          }}
-          onAddExpense={handleAddExpense}
+          show={isModalOpen}
+          onClose={handleCloseModal}
+          onAddExpense={handleSaveExpense} // Changed prop name for clarity
           expenseToEdit={currentExpense}
+          isSaving={isSaving} // Pass saving state to modal if needed (e.g., disable form)
         />
       )}
     </div>
